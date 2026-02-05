@@ -62,9 +62,15 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey := r.Header.Get("X-API-Key")
-
 	repoName := strings.TrimPrefix(r.URL.Path, "/")
+
+	// Health check endpoint (no auth required)
+	if repoName == "_healthz" {
+		w.Write([]byte("OK"))
+		return
+	}
+
+	apiKey := r.Header.Get("X-API-Key")
 
 	// Admin endpoints
 	if repoName == "_reload" {
