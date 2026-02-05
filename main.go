@@ -38,10 +38,16 @@ func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repo RepoConf) {
 
 	dir := filepath.Join(DATA_DIR, repo.Path)
 	params := UpdateRepoKeyValueParams{
-		Dir:        dir,
-		Repo:       repo,
-		Data:       data,
-		MaxRetries: REPO_MAX_RETRIES,
+		Dir:          dir,
+		URL:          repo.URL,
+		Username:     repo.Username,
+		Password:     repo.Password,
+		Branch:       repo.Branch,
+		Path:         repo.Path,
+		GitUserName:  repo.GitUserName,
+		GitUserEmail: repo.GitUserEmail,
+		Data:         data,
+		MaxRetries:   REPO_MAX_RETRIES,
 	}
 	if err := UpdateRepoKeyValue(ctx, params); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

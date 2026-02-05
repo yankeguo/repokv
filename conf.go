@@ -12,12 +12,14 @@ import (
 )
 
 type RepoConf struct {
-	APIKey   string `yaml:"api_key"`
-	URL      string `yaml:"url"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Branch   string `yaml:"branch"`
-	Path     string `yaml:"path"`
+	APIKey       string `yaml:"api_key"`
+	URL          string `yaml:"url"`
+	Username     string `yaml:"username"`
+	Password     string `yaml:"password"`
+	Branch       string `yaml:"branch"`
+	Path         string `yaml:"path"`
+	GitUserName  string `yaml:"git_user_name"`
+	GitUserEmail string `yaml:"git_user_email"`
 }
 
 func (c RepoConf) Validate() error {
@@ -38,6 +40,12 @@ func (c RepoConf) Validate() error {
 	}
 	if strings.TrimSpace(c.Path) == "" {
 		return errors.New("path is required")
+	}
+	if strings.TrimSpace(c.GitUserName) == "" {
+		return errors.New("git_user_name is required")
+	}
+	if strings.TrimSpace(c.GitUserEmail) == "" {
+		return errors.New("git_user_email is required")
 	}
 	return nil
 }
