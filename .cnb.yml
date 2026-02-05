@@ -14,7 +14,7 @@ $:
             - go build -o repokv
         - name: determine version
           script:
-            - echo "${CNB_BRANCH}"
+            - echo "${CNB_BRANCH}" | sed 's/^v//'
           exports:
             stdout: DOCKER_VERSION
         - name: docker build
