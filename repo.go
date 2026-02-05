@@ -67,7 +67,7 @@ type UpdateRepoKeyValueParams struct {
 }
 
 func UpdateRepoKeyValue(ctx context.Context, params UpdateRepoKeyValueParams) error {
-	slog.Info("UpdateRepoKeyValue started", "dir", params.Dir, "branch", params.Branch, "path", params.Path)
+	slog.Info("updating repo key-values started", "dir", params.Dir, "branch", params.Branch, "path", params.Path)
 
 	if params.MaxRetries <= 0 {
 		params.MaxRetries = 3
@@ -91,29 +91,31 @@ func UpdateRepoKeyValue(ctx context.Context, params UpdateRepoKeyValueParams) er
 			slog.Error("attempt failed", "attempt", i+1, "error", err)
 			continue
 		}
-		slog.Info("UpdateRepoKeyValue succeeded")
+		slog.Info("updating repo key-values succeeded")
 		return nil
 	}
 
-	slog.Error("UpdateRepoKeyValue failed after retries", "maxRetries", params.MaxRetries, "error", lastErr)
+	slog.Error("updating repo key-values failed after retries", "maxRetries", params.MaxRetries, "error", lastErr)
 	return fmt.Errorf("failed after %d retries: %w", params.MaxRetries, lastErr)
 }
 
 func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams) error {
-	slog.Info("updateRepoKeyValueOnce started", "dir", params.Dir)
+	logger := slog.With("dir", params.Dir, "branch", params.Branch, "path", params.Path)
+
+	logger.Info("updating repo key-values once started")
 
 	// 检查目录是否存在且是 git 仓库
 	gitDir := filepath.Join(params.Dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		slog.Info("git dir not exist, cloning", "dir", params.Dir)
+		logger.Info("git dir not exist, cloning")
 
 		// 目录不存在或不是 git 仓库，需要克隆
 		if err := os.RemoveAll(params.Dir); err != nil {
-			slog.Error("failed to remove old dir", "dir", params.Dir, "error", err)
+			logger.Error("failed to remove old dir", "error", err)
 			return fmt.Errorf("failed to remove old dir: %w", err)
 		}
 		if err := os.MkdirAll(params.Dir, 0755); err != nil {
-			slog.Error("failed to create dir", "dir", params.Dir, "error", err)
+			logger.Error("failed to create dir", "error", err)
 			return fmt.Errorf("failed to create dir: %w", err)
 		}
 
@@ -123,18 +125,18 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 			cloneURL = insertCredentials(params.URL, params.Username, params.Password)
 		}
 
-		slog.Info("git clone", "dir", params.Dir, "branch", params.Branch)
+		logger.Info("git clone")
 		cmd := exec.CommandContext(ctx, "git", "clone", "-b", params.Branch, "--single-branch", cloneURL, params.Dir)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			slog.Error("git clone failed", "error", err, "output", string(out))
+			logger.Error("git clone failed", "error", err, "output", string(out))
 			return fmt.Errorf("git clone failed: %w, output: %s", err, string(out))
 		}
-		slog.Info("git clone succeeded")
+		logger.Info("git clone succeeded")
 	} else if err != nil {
-		slog.Error("failed to check git dir", "dir", gitDir, "error", err)
+		logger.Error("failed to check git dir", "gitDir", gitDir, "error", err)
 		return fmt.Errorf("failed to check git dir: %w", err)
 	} else {
-		slog.Info("git dir exists, updating repo", "dir", params.Dir)
+		logger.Info("git dir exists, updating repo")
 
 		// 是 git 仓库，更新远端URL、清理并拉取最新代码
 		// 准备带认证的URL
@@ -146,68 +148,68 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 		// 检查 origin 是否存在，不存在则添加，存在则更新URL
 		cmd := exec.CommandContext(ctx, "git", "-C", params.Dir, "remote", "get-url", "origin")
 		if err := cmd.Run(); err != nil {
-			slog.Info("origin not exist, adding remote")
+			logger.Info("origin not exist, adding remote")
 			// origin 不存在，添加 origin
 			cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "remote", "add", "origin", remoteURL)
 			if out, err := cmd.CombinedOutput(); err != nil {
-				slog.Error("git remote add failed", "error", err, "output", string(out))
+				logger.Error("git remote add failed", "error", err, "output", string(out))
 				return fmt.Errorf("git remote add failed: %w, output: %s", err, string(out))
 			}
-			slog.Info("git remote add succeeded")
+			logger.Info("git remote add succeeded")
 		} else {
-			slog.Info("origin exists, updating remote url")
+			logger.Info("origin exists, updating remote url")
 			// origin 存在，更新URL
 			cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "remote", "set-url", "origin", remoteURL)
 			if out, err := cmd.CombinedOutput(); err != nil {
-				slog.Error("git remote set-url failed", "error", err, "output", string(out))
+				logger.Error("git remote set-url failed", "error", err, "output", string(out))
 				return fmt.Errorf("git remote set-url failed: %w, output: %s", err, string(out))
 			}
-			slog.Info("git remote set-url succeeded")
+			logger.Info("git remote set-url succeeded")
 		}
 
 		// 清理未跟踪的文件和目录
-		slog.Info("git clean")
+		logger.Info("git clean")
 		cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "clean", "-fd")
 		_ = cmd.Run() // 忽略错误，继续执行
 
 		// 重置所有变更
-		slog.Info("git reset --hard")
+		logger.Info("git reset --hard")
 		cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "reset", "--hard")
 		_ = cmd.Run() // 忽略错误，继续执行
 
 		// 获取远端最新
-		slog.Info("git fetch", "branch", params.Branch)
+		logger.Info("git fetch")
 		cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "fetch", "origin", params.Branch)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			slog.Error("git fetch failed", "error", err, "output", string(out))
+			logger.Error("git fetch failed", "error", err, "output", string(out))
 			return fmt.Errorf("git fetch failed: %w, output: %s", err, string(out))
 		}
-		slog.Info("git fetch succeeded")
+		logger.Info("git fetch succeeded")
 
 		// 强制重置到远端分支
-		slog.Info("git reset to origin", "branch", params.Branch)
+		logger.Info("git reset to origin")
 		cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "reset", "--hard", "origin/"+params.Branch)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			slog.Error("git reset failed", "error", err, "output", string(out))
+			logger.Error("git reset failed", "error", err, "output", string(out))
 			return fmt.Errorf("git reset failed: %w, output: %s", err, string(out))
 		}
-		slog.Info("git reset succeeded")
+		logger.Info("git reset succeeded")
 	}
 
 	// 确保在正确的分支（可能是分离头指针，需要创建/切换到本地分支）
-	slog.Info("git checkout", "branch", params.Branch)
+	logger.Info("git checkout")
 	cmd := exec.CommandContext(ctx, "git", "-C", params.Dir, "checkout", "-B", params.Branch, "origin/"+params.Branch)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		slog.Error("git checkout failed", "error", err, "output", string(out))
+		logger.Error("git checkout failed", "error", err, "output", string(out))
 		return fmt.Errorf("git checkout failed: %w, output: %s", err, string(out))
 	}
-	slog.Info("git checkout succeeded")
+	logger.Info("git checkout succeeded")
 
 	// 更新 JSON 文件
 	filePath := filepath.Join(params.Dir, params.Path)
-	slog.Info("updating json file", "filePath", filePath)
+	logger.Info("updating json file", "filePath", filePath)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		slog.Error("failed to create file dir", "dir", filepath.Dir(filePath), "error", err)
+		logger.Error("failed to create file dir", "dir", filepath.Dir(filePath), "error", err)
 		return fmt.Errorf("failed to create file dir: %w", err)
 	}
 
@@ -225,52 +227,52 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 
 	content, err := json.MarshalIndent(existingData, "", "  ")
 	if err != nil {
-		slog.Error("failed to marshal json", "error", err)
+		logger.Error("failed to marshal json", "error", err)
 		return fmt.Errorf("failed to marshal json: %w", err)
 	}
 
 	if err := os.WriteFile(filePath, content, 0644); err != nil {
-		slog.Error("failed to write file", "filePath", filePath, "error", err)
+		logger.Error("failed to write file", "filePath", filePath, "error", err)
 		return fmt.Errorf("failed to write file: %w", err)
 	}
-	slog.Info("json file updated")
+	logger.Info("json file updated")
 
 	// 检查是否有变更
-	slog.Info("checking for changes")
+	logger.Info("checking for changes")
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "diff", "--quiet")
 	if err := cmd.Run(); err == nil {
 		// 没有变更
-		slog.Info("no changes detected, skipping commit")
+		logger.Info("no changes detected, skipping commit")
 		return nil
 	}
-	slog.Info("changes detected")
+	logger.Info("changes detected")
 
 	// 配置 git 用户信息
-	slog.Info("configuring git user")
+	logger.Info("configuring git user")
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "config", "user.email", params.GitUserEmail)
 	_ = cmd.Run()
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "config", "user.name", params.GitUserName)
 	_ = cmd.Run()
 
 	// 提交变更
-	slog.Info("git add", "path", params.Path)
+	logger.Info("git add")
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "add", params.Path)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		slog.Error("git add failed", "error", err, "output", string(out))
+		logger.Error("git add failed", "error", err, "output", string(out))
 		return fmt.Errorf("git add failed: %w, output: %s", err, string(out))
 	}
-	slog.Info("git add succeeded")
+	logger.Info("git add succeeded")
 
-	slog.Info("git commit")
+	logger.Info("git commit")
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "commit", "-m", "update key-value")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		slog.Error("git commit failed", "error", err, "output", string(out))
+		logger.Error("git commit failed", "error", err, "output", string(out))
 		return fmt.Errorf("git commit failed: %w, output: %s", err, string(out))
 	}
-	slog.Info("git commit succeeded")
+	logger.Info("git commit succeeded")
 
 	// 推送
-	slog.Info("git push", "branch", params.Branch)
+	logger.Info("git push")
 	pushURL := params.URL
 	if params.Username != "" && params.Password != "" {
 		pushURL = insertCredentials(params.URL, params.Username, params.Password)
@@ -278,11 +280,11 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 
 	cmd = exec.CommandContext(ctx, "git", "-C", params.Dir, "push", pushURL, params.Branch)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		slog.Error("git push failed", "error", err, "output", string(out))
+		logger.Error("git push failed", "error", err, "output", string(out))
 		return fmt.Errorf("git push failed: %w, output: %s", err, string(out))
 	}
-	slog.Info("git push succeeded")
-	slog.Info("updateRepoKeyValueOnce completed successfully")
+	logger.Info("git push succeeded")
+	logger.Info("updating repo key-values once completed successfully")
 
 	return nil
 }
