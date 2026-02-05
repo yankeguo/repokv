@@ -2,6 +2,10 @@ $:
   tag_push:
     - docker:
         image: golang:1.25.7-trixie
+        volumes:
+          - /root/go
+          - /root/.cache
+          - /go
       services:
         - docker
       stages:
@@ -22,6 +26,10 @@ main:
   push:
     - docker:
         image: golang:1.25.7-trixie
+        volumes:
+          - /root/go
+          - /root/.cache
+          - /go
       services:
         - docker
       stages:
