@@ -11,14 +11,31 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// RepoConf defines the configuration for a key-value repository.
 type RepoConf struct {
-	APIKey       string `yaml:"api_key"`
-	URL          string `yaml:"url"`
-	Username     string `yaml:"username"`
-	Password     string `yaml:"password"`
-	Branch       string `yaml:"branch"`
-	Path         string `yaml:"path"`
-	GitUserName  string `yaml:"git_user_name"`
+	// APIKey is the secret key used to authenticate requests to this repository.
+	APIKey string `yaml:"api_key"`
+
+	// URL is the Git repository remote URL (e.g., https://github.com/user/repo.git).
+	URL string `yaml:"url"`
+
+	// Username is the Git authentication username.
+	Username string `yaml:"username"`
+
+	// Password is the Git authentication password or personal access token.
+	Password string `yaml:"password"`
+
+	// Branch is the Git branch to checkout and push changes to.
+	Branch string `yaml:"branch"`
+
+	// Path is the relative path within the repository to the JSON file that stores key-value data.
+	// For example: "config/kv.json" or "data/settings.json".
+	Path string `yaml:"path"`
+
+	// GitUserName is the user name used for Git commits.
+	GitUserName string `yaml:"git_user_name"`
+
+	// GitUserEmail is the user email used for Git commits.
 	GitUserEmail string `yaml:"git_user_email"`
 }
 

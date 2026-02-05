@@ -20,7 +20,7 @@ func handleReload(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repo RepoConf) {
+func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, repo RepoConf) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -36,9 +36,8 @@ func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repo RepoConf) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	dir := filepath.Join(DATA_DIR, repo.Path)
 	params := UpdateRepoKeyValueParams{
-		Dir:          dir,
+		Dir:          filepath.Join(DATA_DIR, repoName),
 		URL:          repo.URL,
 		Username:     repo.Username,
 		Password:     repo.Password,
@@ -64,10 +63,11 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiKey := r.Header.Get("X-API-Key")
-	path := strings.TrimPrefix(r.URL.Path, "/")
 
-	// 处理 reload 请求
-	if path == "_reload" {
+	repoName := strings.TrimPrefix(r.URL.Path, "/")
+
+	// Admin endpoints
+	if repoName == "_reload" {
 		if apiKey != ADMIN_API_KEY {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -76,14 +76,14 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 处理 repo 更新请求
-	repo, found := GetRepo(path)
+	// Repo key-value update
+	repo, found := GetRepo(repoName)
 	if !found || repo.APIKey != apiKey {
 		http.Error(w, "Repo not found or invalid api key", http.StatusNotFound)
 		return
 	}
 
-	handleRepoUpdate(w, r, repo)
+	handleRepoUpdate(w, r, repoName, repo)
 }
 
 func runServer() error {

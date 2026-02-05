@@ -30,17 +30,39 @@ func getDirLock(dir string) sync.Locker {
 	return lock
 }
 
+// UpdateRepoKeyValueParams contains all parameters needed to update key-value data in a Git repository.
 type UpdateRepoKeyValueParams struct {
-	Dir          string
-	URL          string
-	Username     string
-	Password     string
-	Branch       string
-	Path         string
-	GitUserName  string
+	// Dir is the local directory path where the Git repository will be cloned.
+	// This serves as the workspace for all Git operations.
+	Dir string
+
+	// URL is the Git repository remote URL.
+	URL string
+
+	// Username is the Git authentication username.
+	Username string
+
+	// Password is the Git authentication password or token.
+	Password string
+
+	// Branch is the Git branch to checkout and push to.
+	Branch string
+
+	// Path is the relative path within the repository to the JSON file storing key-value data.
+	// This file will be created or updated within the cloned repository.
+	Path string
+
+	// GitUserName is the author name for Git commits.
+	GitUserName string
+
+	// GitUserEmail is the author email for Git commits.
 	GitUserEmail string
-	Data         map[string]string
-	MaxRetries   int
+
+	// Data contains the key-value pairs to write to the JSON file.
+	Data map[string]string
+
+	// MaxRetries is the maximum number of retry attempts for failed operations.
+	MaxRetries int
 }
 
 func UpdateRepoKeyValue(ctx context.Context, params UpdateRepoKeyValueParams) error {
