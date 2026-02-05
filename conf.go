@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,13 +69,13 @@ func (c RepoConf) Validate() error {
 }
 
 var (
-	repos     map[string]RepoConf
-	reposLock = &sync.RWMutex{}
+	repos   map[string]RepoConf
+	reposMu = &sync.RWMutex{}
 )
 
-func LoadRepos(dir string) (err error) {
-	reposLock.Lock()
-	defer reposLock.Unlock()
+func LoadRepos(dir string) error {
+	reposMu.Lock()
+	defer reposMu.Unlock()
 
 	repos = make(map[string]RepoConf)
 
@@ -121,9 +122,18 @@ func LoadRepos(dir string) (err error) {
 	return nil
 }
 
+func GetRepos() map[string]RepoConf {
+	reposMu.RLock()
+	defer reposMu.RUnlock()
+
+	out := make(map[string]RepoConf, len(repos))
+	maps.Copy(out, repos)
+	return out
+}
+
 func GetRepo(name string) (RepoConf, bool) {
-	reposLock.RLock()
-	defer reposLock.RUnlock()
+	reposMu.RLock()
+	defer reposMu.RUnlock()
 	conf, ok := repos[name]
 	return conf, ok
 }

@@ -31,8 +31,9 @@ func getDirLock(dir string) sync.Locker {
 	return lock
 }
 
-// UpdateRepoKeyValueParams contains all parameters needed to update key-value data in a Git repository.
-type UpdateRepoKeyValueParams struct {
+// SyncRepoKeyValuesParams contains all parameters needed to synchronize key-value data in a Git repository.
+// An empty Data field can be used to initialize the repository and checkout the branch without making changes.
+type SyncRepoKeyValuesParams struct {
 	// Dir is the local directory path where the Git repository will be cloned.
 	// This serves as the workspace for all Git operations.
 	Dir string
@@ -60,14 +61,18 @@ type UpdateRepoKeyValueParams struct {
 	GitUserEmail string
 
 	// Data contains the key-value pairs to write to the JSON file.
+	// If empty, the function will only initialize the repository and checkout the branch without modifying any files.
 	Data map[string]string
 
 	// MaxRetries is the maximum number of retry attempts for failed operations.
 	MaxRetries int
 }
 
-func UpdateRepoKeyValue(ctx context.Context, params UpdateRepoKeyValueParams) error {
-	slog.Info("updating repo key-values started", "dir", params.Dir, "branch", params.Branch, "path", params.Path)
+// SyncRepoKeyValues synchronizes key-value data in a Git repository.
+// It clones or pulls the repository, checks out the specified branch, and updates the JSON file with the provided data.
+// If Data is empty, it only initializes the repository and checks out the branch without making any file changes.
+func SyncRepoKeyValues(ctx context.Context, params SyncRepoKeyValuesParams) error {
+	slog.Info("start syncing repo key-values", "dir", params.Dir, "branch", params.Branch, "path", params.Path)
 
 	if params.MaxRetries <= 0 {
 		params.MaxRetries = 3
@@ -86,23 +91,23 @@ func UpdateRepoKeyValue(ctx context.Context, params UpdateRepoKeyValueParams) er
 			time.Sleep(time.Second * time.Duration(i))
 		}
 
-		if err := updateRepoKeyValueOnce(ctx, params); err != nil {
+		if err := syncRepoKeyValuesOnce(ctx, params); err != nil {
 			lastErr = err
 			slog.Error("attempt failed", "attempt", i+1, "error", err)
 			continue
 		}
-		slog.Info("updating repo key-values succeeded")
+		slog.Info("syncing repo key-values succeeded")
 		return nil
 	}
 
-	slog.Error("updating repo key-values failed after retries", "maxRetries", params.MaxRetries, "error", lastErr)
+	slog.Error("syncing repo key-values failed after retries", "maxRetries", params.MaxRetries, "error", lastErr)
 	return fmt.Errorf("failed after %d retries: %w", params.MaxRetries, lastErr)
 }
 
-func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams) error {
+func syncRepoKeyValuesOnce(ctx context.Context, params SyncRepoKeyValuesParams) error {
 	logger := slog.With("dir", params.Dir, "branch", params.Branch, "path", params.Path)
 
-	logger.Info("updating repo key-values once started")
+	logger.Info("start syncing repo key-values once")
 
 	// 检查目录是否存在且是 git 仓库
 	gitDir := filepath.Join(params.Dir, ".git")
@@ -205,6 +210,11 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 	}
 	logger.Info("git checkout succeeded")
 
+	if len(params.Data) == 0 {
+		logger.Info("no data to update, skipping file operations")
+		return nil
+	}
+
 	// 更新 JSON 文件
 	filePath := filepath.Join(params.Dir, params.Path)
 	logger.Info("updating json file", "filePath", filePath)
@@ -284,7 +294,7 @@ func updateRepoKeyValueOnce(ctx context.Context, params UpdateRepoKeyValueParams
 		return fmt.Errorf("git push failed: %w, output: %s", err, string(out))
 	}
 	logger.Info("git push succeeded")
-	logger.Info("updating repo key-values once completed successfully")
+	logger.Info("syncing repo key-values once completed successfully")
 
 	return nil
 }

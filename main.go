@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +18,7 @@ func handleReload(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte("OK"))
+	fmt.Fprintln(w, "OK")
 }
 
 func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, repo RepoConf) {
@@ -36,7 +37,7 @@ func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, r
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	params := UpdateRepoKeyValueParams{
+	params := SyncRepoKeyValuesParams{
 		Dir:          filepath.Join(DATA_DIR, repoName),
 		URL:          repo.URL,
 		Username:     repo.Username,
@@ -48,12 +49,12 @@ func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, r
 		Data:         data,
 		MaxRetries:   REPO_MAX_RETRIES,
 	}
-	if err := UpdateRepoKeyValue(ctx, params); err != nil {
+	if err := SyncRepoKeyValues(ctx, params); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte("OK"))
+	fmt.Fprintln(w, "OK")
 }
 
 func handleHTTP(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +62,7 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Health check endpoint (no auth required, supports any method)
 	if repoName == "_healthz" {
-		w.Write([]byte("OK"))
+		fmt.Fprintln(w, "OK")
 		return
 	}
 
