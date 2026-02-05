@@ -57,16 +57,16 @@ func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, r
 }
 
 func handleHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	repoName := strings.TrimPrefix(r.URL.Path, "/")
+
+	// Health check endpoint (no auth required, supports any method)
+	if repoName == "_healthz" {
+		w.Write([]byte("OK"))
 		return
 	}
 
-	repoName := strings.TrimPrefix(r.URL.Path, "/")
-
-	// Health check endpoint (no auth required)
-	if repoName == "_healthz" {
-		w.Write([]byte("OK"))
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
