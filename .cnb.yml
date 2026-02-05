@@ -1,0 +1,39 @@
+$:
+  tag_push:
+    - docker:
+        image: golang:1.25.7-trixie
+      services:
+        - docker
+      stages:
+        - name: build
+          script:
+            - go build -o repokv
+        - name: determine version
+          script:
+            - echo "${CNB_BRANCH}"
+          exports:
+            stdout: DOCKER_VERSION
+        - name: docker build
+          script: docker build -t ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:${DOCKER_VERSION} .
+        - name: docker push
+          script: docker push ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:${DOCKER_VERSION}
+
+main:
+  push:
+    - docker:
+        image: golang:1.25.7-trixie
+      services:
+        - docker
+      stages:
+        - name: build
+          script:
+            - go build -o repokv
+        - name: determine version
+          script:
+            - echo "latest"
+          exports:
+            stdout: DOCKER_VERSION
+        - name: docker build
+          script: docker build -t ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:${DOCKER_VERSION} .
+        - name: docker push
+          script: docker push ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:${DOCKER_VERSION}
