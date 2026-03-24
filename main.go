@@ -23,16 +23,10 @@ func handleReload(w http.ResponseWriter, _ *http.Request) {
 }
 
 func handleRepoUpdate(w http.ResponseWriter, r *http.Request, repoName string, repo RepoConf) {
-	if err := r.ParseForm(); err != nil {
+	data, err := decodePayload(r)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	data := make(map[string]string)
-	for key, values := range r.PostForm {
-		if len(values) > 0 {
-			data[key] = values[0]
-		}
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
