@@ -1,4 +1,4 @@
-module cnb.cool/yankeguo/repokv
+module github.com/yankeguo/repokv
 
 go 1.25.7
 
