@@ -21,6 +21,45 @@ go build -o repokv .
 ./repokv
 ```
 
+## Docker
+
+### Pull Prebuilt Image
+
+```bash
+# GHCR
+docker pull ghcr.io/yankeguo/repokv:latest
+
+# Docker Hub
+docker pull yankeguo/repokv:latest
+
+# Quay
+docker pull quay.io/yankeguo/repokv:latest
+```
+
+### Build Locally
+
+```bash
+docker build -t yankeguo/repokv:local .
+```
+
+### Run with Local Config/Data
+
+The container image uses `WORKDIR /app`. If you keep default relative paths (`REPOKV_CONF_DIR=./conf`, `REPOKV_DATA_DIR=./data`), they are resolved from `/app` inside the container.
+
+```bash
+mkdir -p ./conf ./data
+
+docker run --rm -p 8080:8080 \
+  -e REPOKV_ADMIN_API_KEY=admin-api-key \
+  -e REPOKV_CONF_DIR=/app/conf \
+  -e REPOKV_DATA_DIR=/app/data \
+  -v "$(pwd)/conf:/app/conf" \
+  -v "$(pwd)/data:/app/data" \
+  ghcr.io/yankeguo/repokv:latest
+```
+
+Then create repository config files in `./conf` (for example `./conf/myrepo.yaml`) and use the HTTP API as usual.
+
 ## Configuration
 
 ### Environment Variables
